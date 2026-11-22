@@ -308,7 +308,7 @@ theorem occupiedCount_window_packing {L N : ℕ} [NeZero L] (x : State L N) (R :
         occupiedPairCountAt ((s - t : ℕ) : Fin L) x :=
   thresholdCount_window_packing x 1 R
 
-private theorem stationary_threshold_window_packing {L N : ℕ} [NeZero L] {w : ℝ}
+theorem stationary_threshold_window_packing {L N : ℕ} [NeZero L] {w : ℝ}
     (μ : StationaryLaw L N w) (k R : ℕ) (hR : 0 < R) (b : ℝ) (hb : 0 ≤ b)
     (hpair : ∀ r : ℕ, 0 < r → r < R → meanThresholdPairCountAt μ k (r : Fin L) ≤ b) :
     (∑ x, μ.weight x * (∑ i, if k ≤ occ x i then (1 : ℝ) else 0)) / (L : ℝ) ≤
@@ -378,7 +378,7 @@ theorem stationary_occupiedDensity_le {L N : ℕ} [NeZero L]
   dsimp [c]
   ring
 
-private theorem density_tendsto_zero_of_window_bounds {L : ℕ → ℕ} {u v : ℕ → ℝ}
+theorem density_tendsto_zero_of_window_bounds {L : ℕ → ℕ} {u v : ℕ → ℝ}
     (hLlim : Tendsto L atTop atTop) (hu : ∀ n, 0 ≤ u n) (hv : Tendsto v atTop (𝓝 0))
     (bound : ∀ R : ℕ, 0 < R → ∃ c : ℝ, ∀ n, R ≤ L n → u n ≤ 1 / (R : ℝ) + c * v n) :
     Tendsto u atTop (𝓝 0) := by
@@ -688,7 +688,7 @@ theorem stationary_cappedMass_balance {L N : ℕ} (hL : 3 ≤ L) {w : ℝ}
 def meanAboveCapCount {L N : ℕ} {w : ℝ} (μ : StationaryLaw L N w) (k : ℕ) : ℝ :=
   ∑ x, μ.weight x * aboveCapCount k x
 
-private theorem meanAboveCapCount_nonneg {L N : ℕ} {w : ℝ} (μ : StationaryLaw L N w) (k : ℕ) :
+theorem meanAboveCapCount_nonneg {L N : ℕ} {w : ℝ} (μ : StationaryLaw L N w) (k : ℕ) :
     0 ≤ meanAboveCapCount μ k := by
   unfold meanAboveCapCount aboveCapCount
   exact Finset.sum_nonneg (fun x _ => mul_nonneg (μ.nonneg x)

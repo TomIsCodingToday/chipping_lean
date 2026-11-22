@@ -101,7 +101,7 @@ theorem ring_drift_eq_shift {L N : ℕ} [NeZero L] (w : ℝ) (V : Group → ℝ)
   · simp only [if_neg h2, if_neg (show ¬2 ≤ s.mass by omega), hm]
 
 /-- The distinct sites of the slices are the distinct particle positions. -/
-private theorem slice_sites (g : Group) :
+theorem slice_sites (g : Group) :
     (g.slices.map (·.site)).Nodup ∧ ∀ j, j ∈ g.slices.map (·.site) ↔ j ∈ g.positions := by
   rcases g with _ | (_ | a) | ⟨(_ | a), (_ | b)⟩ <;>
     simp [Group.slices, Group.positions]
@@ -134,12 +134,12 @@ theorem sum_range_eq_slices (g : Group) (o W : ℕ) (hroom : o + g.span + 1 < W)
 section Block
 variable {L N : ℕ} [NeZero L]
 
-private theorem natCast_fin_inj {a b : ℕ} (ha : a < L) (hb : b < L)
+theorem natCast_fin_inj {a b : ℕ} (ha : a < L) (hb : b < L)
     (h : (a : Fin L) = (b : Fin L)) : a = b := by
   have := congrArg Fin.val h
   simpa [Fin.val_natCast, Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb] using this
 
-private theorem block_site_ne_rear (base : Fin L) {W j : ℕ} (hWL : W < L) (hj : j < W) :
+theorem block_site_ne_rear (base : Fin L) {W j : ℕ} (hWL : W < L) (hj : j < W) :
     base + (j : Fin L) ≠ base - 1 := by
   intro h
   have h' : ((j + 1 : ℕ) : Fin L) = ((L : ℕ) : Fin L) := by

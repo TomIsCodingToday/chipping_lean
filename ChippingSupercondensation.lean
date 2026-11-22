@@ -15,6 +15,9 @@ import ChippingSupercondensation.WindowEight
 import ChippingSupercondensation.VariableWindow
 import ChippingSupercondensation.WindowMotion
 import ChippingSupercondensation.WindowSum
+import ChippingSupercondensation.ContentWindow
+import ChippingSupercondensation.LargeClusters
+import ChippingSupercondensation.FiniteBackground
 
 /-!
 # Supercondensation for the totally asymmetric chipping process
@@ -54,6 +57,17 @@ in dependency order:
   a stationary bound for a bare triple in terms of light blocks and exits.
 * `WindowSum`: the block bound summed over every base of the ring together with
   the linear moment, giving a stationary bound for isolated bare triples.
+* `ContentWindow`: the same summation for any certified price of block contents
+  of at most `M` particles, with `VariableWindow` as the instance `M = 3`.
+* `LargeClusters`: threshold densities propagate downward, so for every fixed
+  `m₀` only background piles of at least `m₀` particles need control; the
+  hypothesis `ClusterCountDecay` and the conditional theorems
+  `supercondensesAt_of_clusterCountDecay` and
+  `smallWSupercondensation_of_clusterCountDecay`.
+* `FiniteBackground`: the weaker target of a background with bounded density,
+  `FiniteBackground` and `SmallWFiniteBackground`; condensation of the excess
+  mass; an exact characterization by the directional imbalance; the reduction
+  to large piles; and the conditional theorem from `PerSiteClusterDecay`.
 
 `Coalescence` depends only on `Identities` and the modules before it.
 `PileBirths` imports both `Background` and `Coalescence`. `PeakFrame` depends

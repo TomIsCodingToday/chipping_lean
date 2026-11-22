@@ -102,7 +102,7 @@ theorem slice_facts (g : Group) (s : Slice) (hs : s ∈ g.slices) :
     intro k hk
     interval_cases k <;> simp (disch := omega) [List.replicate_succ, Nat.add_assoc] <;> omega
 
-private theorem count_after (s : Slice) (k j : ℕ) (hk : k ≤ s.mass) :
+theorem count_after (s : Slice) (k j : ℕ) (hk : k ≤ s.mass) :
     (s.after k).count j =
       (s.after 0).count j - (if j = s.site then k else 0) + (if j = s.site+1 then k else 0) := by
   simp only [Slice.after, List.count_append, List.count_replicate, beq_iff_eq, Nat.sub_zero]
