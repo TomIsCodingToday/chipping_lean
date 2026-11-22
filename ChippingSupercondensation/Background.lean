@@ -249,23 +249,30 @@ private theorem sum_binary_le_one_add_pairs (f : ℕ → ℝ)
         Finset.sum_nonneg (fun s _ => Finset.sum_nonneg (fun t _ => mul_nonneg (hn t) (hn s)))
       linarith only [hpair]
 
-/-- Occupied sites in a window are bounded by one plus the number of occupied
+/-- Number of pairs at the given offset, both at or above the cutoff. -/
+def thresholdPairCountAt {L N : ℕ} (k : ℕ) (d : Fin L) (x : State L N) : ℝ :=
+  ∑ i, thresholdPair k i (i + d) x
+
+def meanThresholdPairCountAt {L N : ℕ} {w : ℝ} (μ : StationaryLaw L N w) (k : ℕ) (d : Fin L) : ℝ :=
+  ∑ x, μ.weight x * thresholdPairCountAt k d x
+
+/-- Sites meeting a mass threshold in a window are bounded by one plus the number of occupied
 pairs in that window. Summing over all its translations gives this packing bound. -/
-theorem occupiedCount_window_packing {L N : ℕ} [NeZero L] (x : State L N) (R : ℕ) :
-    (R : ℝ) * occupiedCount x ≤
+theorem thresholdCount_window_packing {L N : ℕ} [NeZero L] (x : State L N) (k R : ℕ) :
+    (R : ℝ) * (∑ i, if k ≤ occ x i then (1 : ℝ) else 0) ≤
       (L : ℝ) + ∑ s ∈ Finset.range R, ∑ t ∈ Finset.range s,
-        occupiedPairCountAt ((s - t : ℕ) : Fin L) x := by
-  let f (i : Fin L) : ℝ := if 0 < occ x i then 1 else 0
+        thresholdPairCountAt k ((s - t : ℕ) : Fin L) x := by
+  let f (i : Fin L) : ℝ := if k ≤ occ x i then 1 else 0
   have hbin (i : Fin L) : f i = 0 ∨ f i = 1 := by
     unfold f
     split_ifs <;> simp
-  have hpair (i j : Fin L) : f i * f j = occupiedPair i j x := by
-    by_cases hi : 0 < occ x i <;> by_cases hj : 0 < occ x j <;> simp [f, occupiedPair, hi, hj]
-  have hleft (s : ℕ) : (∑ i : Fin L, f (i + (s : Fin L))) = occupiedCount x :=
+  have hpair (i j : Fin L) : f i * f j = thresholdPair k i j x := by
+    by_cases hi : k ≤ occ x i <;> by_cases hj : k ≤ occ x j <;> simp [f, thresholdPair, hi, hj]
+  have hleft (s : ℕ) : (∑ i : Fin L, f (i + (s : Fin L))) = (∑ i, if k ≤ occ x i then (1 : ℝ) else 0) :=
     Equiv.sum_comp (Equiv.addRight (s : Fin L)) f
   have hright (s t : ℕ) (ht : t ≤ s) :
       (∑ i : Fin L, f (i + (t : Fin L)) * f (i + (s : Fin L))) =
-        occupiedPairCountAt ((s - t : ℕ) : Fin L) x := by
+        thresholdPairCountAt k ((s - t : ℕ) : Fin L) x := by
     have hshift (i : Fin L) :
         i + (t : Fin L) + ((s - t : ℕ) : Fin L) = i + (s : Fin L) := by
       rw [add_assoc, ← Nat.cast_add]
@@ -273,7 +280,7 @@ theorem occupiedCount_window_packing {L N : ℕ} [NeZero L] (x : State L N) (R :
       omega
     simp_rw [hpair, ← hshift]
     exact Equiv.sum_comp (Equiv.addRight (t : Fin L))
-      (fun i => occupiedPair i (i + ((s - t : ℕ) : Fin L)) x)
+      (fun i => thresholdPair k i (i + ((s - t : ℕ) : Fin L)) x)
   calc
     _ = ∑ i : Fin L, ∑ s ∈ Finset.range R, f (i + (s : Fin L)) := by
       rw [Finset.sum_comm]
@@ -293,19 +300,22 @@ theorem occupiedCount_window_packing {L N : ℕ} [NeZero L] (x : State L N) (R :
       intro t ht
       exact hright s t (Finset.mem_range.mp ht).le
 
-/-- At fixed positive rate, any window size bounds the occupied-site density
-by its reciprocal plus a constant times the multiple-site density. -/
-theorem stationary_occupiedDensity_le {L N : ℕ} [NeZero L]
-    (hL : 3 ≤ L) {w : ℝ} (hw : 0 < w) (μ : StationaryLaw L N w)
-    (R : ℕ) (hR : 0 < R) (hRL : R ≤ L) :
-    meanOccupiedCount μ / (L : ℝ) ≤
-      1 / (R : ℝ) + ((R : ℝ) * ((3 * w + 2) / w) ^ R) * (meanMultipleCount μ / (L : ℝ)) := by
-  let c : ℝ := (3 * w + 2) / w
-  let b : ℝ := c ^ R * meanMultipleCount μ
-  have hc : 1 ≤ c := (le_div_iff₀ hw).mpr (by linarith)
-  have hb : 0 ≤ b := mul_nonneg (pow_nonneg (zero_le_one.trans hc) _) (meanMultipleCount_nonneg μ)
+/-- Occupied sites in a window are bounded by one plus the number of occupied
+pairs in that window. Summing over all its translations gives this packing bound. -/
+theorem occupiedCount_window_packing {L N : ℕ} [NeZero L] (x : State L N) (R : ℕ) :
+    (R : ℝ) * occupiedCount x ≤
+      (L : ℝ) + ∑ s ∈ Finset.range R, ∑ t ∈ Finset.range s,
+        occupiedPairCountAt ((s - t : ℕ) : Fin L) x :=
+  thresholdCount_window_packing x 1 R
+
+private theorem stationary_threshold_window_packing {L N : ℕ} [NeZero L] {w : ℝ}
+    (μ : StationaryLaw L N w) (k R : ℕ) (hR : 0 < R) (b : ℝ) (hb : 0 ≤ b)
+    (hpair : ∀ r : ℕ, 0 < r → r < R → meanThresholdPairCountAt μ k (r : Fin L) ≤ b) :
+    (∑ x, μ.weight x * (∑ i, if k ≤ occ x i then (1 : ℝ) else 0)) / (L : ℝ) ≤
+      1 / (R : ℝ) + (R : ℝ) * b / (L : ℝ) := by
+  let count (x : State L N) : ℝ := ∑ i, if k ≤ occ x i then 1 else 0
   have hsum :
-      (∑ s ∈ Finset.range R, ∑ t ∈ Finset.range s, meanOccupiedPairCountAt μ ((s - t : ℕ) : Fin L)) ≤
+      (∑ s ∈ Finset.range R, ∑ t ∈ Finset.range s, meanThresholdPairCountAt μ k ((s - t : ℕ) : Fin L)) ≤
         (R : ℝ) ^ 2 * b := by
     calc
       _ ≤ ∑ s ∈ Finset.range R, ∑ _t ∈ Finset.range s, b := by
@@ -315,9 +325,7 @@ theorem stationary_occupiedDensity_le {L N : ℕ} [NeZero L]
         apply Finset.sum_le_sum
         intro t ht
         have ht' := Finset.mem_range.mp ht
-        refine (stationary_occupiedPairCount_le_multipleCount hL hw μ (s - t)
-          (by omega) (by omega)).trans ?_
-        exact mul_le_mul_of_nonneg_right (pow_le_pow_right₀ hc (by omega)) (meanMultipleCount_nonneg μ)
+        exact hpair (s - t) (by omega) (by omega)
       _ = ∑ s ∈ Finset.range R, (s : ℝ) * b := by simp [nsmul_eq_mul]
       _ ≤ ∑ _s ∈ Finset.range R, (R : ℝ) * b := by
         apply Finset.sum_le_sum
@@ -325,16 +333,16 @@ theorem stationary_occupiedDensity_le {L N : ℕ} [NeZero L]
         exact mul_le_mul_of_nonneg_right (by exact_mod_cast (Finset.mem_range.mp hs).le) hb
       _ = _ := by simp [nsmul_eq_mul, pow_two, mul_assoc]
   have hweighted :
-      (R : ℝ) * meanOccupiedCount μ ≤
+      (R : ℝ) * (∑ x, μ.weight x * count x) ≤
         (L : ℝ) + ∑ s ∈ Finset.range R, ∑ t ∈ Finset.range s,
-          meanOccupiedPairCountAt μ ((s - t : ℕ) : Fin L) := by
+          meanThresholdPairCountAt μ k ((s - t : ℕ) : Fin L) := by
     calc
-      _ = ∑ x, μ.weight x * ((R : ℝ) * occupiedCount x) := by
-        simp only [meanOccupiedCount, Finset.mul_sum, mul_left_comm]
+      _ = ∑ x, μ.weight x * ((R : ℝ) * count x) := by
+        simp only [Finset.mul_sum, mul_left_comm]
       _ ≤ ∑ x, μ.weight x * ((L : ℝ) + ∑ s ∈ Finset.range R, ∑ t ∈ Finset.range s,
-          occupiedPairCountAt ((s - t : ℕ) : Fin L) x) :=
+          thresholdPairCountAt k ((s - t : ℕ) : Fin L) x) :=
         Finset.sum_le_sum (fun x _ =>
-          mul_le_mul_of_nonneg_left (occupiedCount_window_packing x R) (μ.nonneg x))
+          mul_le_mul_of_nonneg_left (thresholdCount_window_packing x k R) (μ.nonneg x))
       _ = _ := by
         simp_rw [mul_add, Finset.sum_add_distrib]
         rw [← Finset.sum_mul, μ.normalized, one_mul]
@@ -347,9 +355,51 @@ theorem stationary_occupiedDensity_le {L N : ℕ} [NeZero L]
         rfl
   have hpack := hweighted.trans (add_le_add_left hsum (L : ℝ))
   have hRreal : (0 : ℝ) < (R : ℝ) := by exact_mod_cast hR
-  have hLreal : (0 : ℝ) < (L : ℝ) := by exact_mod_cast (show 0 < L by omega)
+  have hLreal : (0 : ℝ) < (L : ℝ) := by exact_mod_cast (NeZero.pos L)
   have hscaled := div_le_div_of_nonneg_right hpack (mul_pos hRreal hLreal).le
-  convert hscaled using 1 <;> dsimp [b, c] <;> field_simp [hRreal.ne', hLreal.ne'] <;> ring
+  change (∑ x, μ.weight x * count x) / _ ≤ _
+  convert hscaled using 1 <;> field_simp [hRreal.ne', hLreal.ne'] <;> ring
+
+/-- At fixed positive rate, any window size bounds the occupied-site density
+by its reciprocal plus a constant times the multiple-site density. -/
+theorem stationary_occupiedDensity_le {L N : ℕ} [NeZero L]
+    (hL : 3 ≤ L) {w : ℝ} (hw : 0 < w) (μ : StationaryLaw L N w)
+    (R : ℕ) (hR : 0 < R) (hRL : R ≤ L) :
+    meanOccupiedCount μ / (L : ℝ) ≤
+      1 / (R : ℝ) + ((R : ℝ) * ((3 * w + 2) / w) ^ R) * (meanMultipleCount μ / (L : ℝ)) := by
+  let c : ℝ := (3 * w + 2) / w
+  have hc : 1 ≤ c := (le_div_iff₀ hw).mpr (by linarith)
+  have hb := mul_nonneg (pow_nonneg (zero_le_one.trans hc) R) (meanMultipleCount_nonneg μ)
+  have estimate := stationary_threshold_window_packing μ 1 R hR _ hb
+    (fun r hr hrR => (stationary_occupiedPairCount_le_multipleCount hL hw μ r hr
+      (hrR.trans_le hRL)).trans (mul_le_mul_of_nonneg_right
+        (pow_le_pow_right₀ hc (by omega)) (meanMultipleCount_nonneg μ)))
+  convert estimate using 1
+  dsimp [c]
+  ring
+
+private theorem density_tendsto_zero_of_window_bounds {L : ℕ → ℕ} {u v : ℕ → ℝ}
+    (hLlim : Tendsto L atTop atTop) (hu : ∀ n, 0 ≤ u n) (hv : Tendsto v atTop (𝓝 0))
+    (bound : ∀ R : ℕ, 0 < R → ∃ c : ℝ, ∀ n, R ≤ L n → u n ≤ 1 / (R : ℝ) + c * v n) :
+    Tendsto u atTop (𝓝 0) := by
+  apply tendsto_order.2
+  constructor
+  · intro a ha
+    exact Eventually.of_forall fun n => ha.trans_le (hu n)
+  · intro b hb
+    obtain ⟨R, hRbig⟩ := exists_nat_gt ((2 : ℝ) / b)
+    have hRreal : (0 : ℝ) < (R : ℝ) := (by positivity : (0 : ℝ) < 2 / b).trans hRbig
+    have hR : 0 < R := by exact_mod_cast hRreal
+    have hrecip : 1 / (R : ℝ) < b / 2 := by
+      apply (div_lt_iff₀ hRreal).mpr
+      have hmul := (div_lt_iff₀ hb).mp hRbig
+      nlinarith only [hmul]
+    obtain ⟨c, hc⟩ := bound R hR
+    have hconv : Tendsto (fun n => c * v n) atTop (𝓝 0) := by
+      simpa only [mul_zero] using (tendsto_const_nhds (x := c)).mul hv
+    filter_upwards [(tendsto_atTop.1 hLlim R), (tendsto_order.1 hconv).2 (b / 2) (half_pos hb)]
+      with n hn hsmall
+    linarith only [hc n hn, hrecip, hsmall]
 
 /-- If multiple sites have vanishing density, so do all occupied sites.
 This holds at any fixed positive chip rate and uses no majority assumption. -/
@@ -359,33 +409,13 @@ theorem occupiedDensity_tendsto_zero_of_multipleDensity_tendsto_zero
     (μ : (n : ℕ) → StationaryLaw (L n) (N n) w)
     (hmultiple : Tendsto (fun n => meanMultipleCount (μ n) / (L n : ℝ)) atTop (𝓝 0)) :
     Tendsto (fun n => meanOccupiedCount (μ n) / (L n : ℝ)) atTop (𝓝 0) := by
-  apply tendsto_order.2
-  constructor
-  · intro a ha
-    apply Eventually.of_forall
-    intro n
-    apply ha.trans_le
-    apply div_nonneg _ (by positivity)
+  refine density_tendsto_zero_of_window_bounds hLlim (fun n => ?_) hmultiple ?_
+  · apply div_nonneg _ (by positivity)
     unfold meanOccupiedCount occupiedCount
     exact Finset.sum_nonneg (fun x _ => mul_nonneg ((μ n).nonneg x)
       (Finset.sum_nonneg (fun _ _ => by split_ifs <;> norm_num)))
-  · intro b hb
-    obtain ⟨R, hRbig⟩ := exists_nat_gt ((2 : ℝ) / b)
-    have hRreal : (0 : ℝ) < (R : ℝ) := (by positivity : (0 : ℝ) < 2 / b).trans hRbig
-    have hR : 0 < R := by exact_mod_cast hRreal
-    have hrecip : 1 / (R : ℝ) < b / 2 := by
-      apply (div_lt_iff₀ hRreal).mpr
-      have hmul := (div_lt_iff₀ hb).mp hRbig
-      nlinarith only [hmul]
-    let c : ℝ := (R : ℝ) * ((3 * w + 2) / w) ^ R
-    have hconv : Tendsto (fun n => c * (meanMultipleCount (μ n) / (L n : ℝ))) atTop (𝓝 0) := by
-      simpa only [mul_zero] using (tendsto_const_nhds (x := c)).mul hmultiple
-    filter_upwards [(tendsto_atTop.1 hLlim R), (tendsto_order.1 hconv).2 (b / 2) (half_pos hb)]
-      with n hn hsmall
-    have hbound := stationary_occupiedDensity_le (hL n) hw (μ n) R hR hn
-    change meanOccupiedCount (μ n) / (L n : ℝ) ≤
-      1 / (R : ℝ) + c * (meanMultipleCount (μ n) / (L n : ℝ)) at hbound
-    linarith only [hbound, hrecip, hsmall]
+  · intro R hR
+    exact ⟨_, fun n hn => stationary_occupiedDensity_le (hL n) hw (μ n) R hR hn⟩
 
 /-- Background mass on sites with at least two particles. A chosen largest
 pile is removed even if several sites tie for largest. -/
@@ -654,12 +684,6 @@ theorem stationary_cappedMass_balance {L N : ℕ} (hL : 3 ≤ L) {w : ℝ}
   simp_rw [hstate, mul_sub, Finset.sum_sub_distrib, mul_left_comm _ w, ← Finset.mul_sum] at h
   linarith only [h]
 
-/-- Number of pairs at the given offset, both at or above the cutoff. -/
-def thresholdPairCountAt {L N : ℕ} (k : ℕ) (d : Fin L) (x : State L N) : ℝ :=
-  ∑ i, thresholdPair k i (i + d) x
-
-def meanThresholdPairCountAt {L N : ℕ} {w : ℝ} (μ : StationaryLaw L N w) (k : ℕ) (d : Fin L) : ℝ :=
-  ∑ x, μ.weight x * thresholdPairCountAt k d x
 
 def meanAboveCapCount {L N : ℕ} {w : ℝ} (μ : StationaryLaw L N w) (k : ℕ) : ℝ :=
   ∑ x, μ.weight x * aboveCapCount k x
@@ -826,6 +850,36 @@ theorem stationary_thresholdPairCount_le {L N : ℕ} [NeZero L] (hL : 3 ≤ L)
       have hexp : r.succ - 1 = (r - 1) + 1 := by omega
       rw [hexp, pow_succ']
       simpa only [mul_assoc] using hmul
+
+/-- A reciprocal-window bound on the density of multiple sites in terms of
+the density of sites holding three or more particles. -/
+theorem stationary_multipleDensity_le {L N : ℕ} [NeZero L] (hL : 3 ≤ L)
+    {w : ℝ} (hw : 0 < w) (μ : StationaryLaw L N w) (R : ℕ) (hR : 0 < R) (hRL : R ≤ L) :
+    meanMultipleCount μ / (L : ℝ) ≤
+      1 / (R : ℝ) + ((R : ℝ) * (2 * w + 3) ^ R) * (meanAboveCapCount μ 2 / (L : ℝ)) := by
+  have hc : 1 ≤ 2 * w + 3 := by linarith
+  have hcap := meanAboveCapCount_nonneg μ 2
+  have hfactor : w * meanAboveCapCount μ 2 / (2 + w) ≤ meanAboveCapCount μ 2 := by
+    apply (div_le_iff₀ (by linarith)).mpr
+    nlinarith
+  have h := stationary_threshold_window_packing μ 2 R hR
+    ((2 * w + 3) ^ R * meanAboveCapCount μ 2) (by positivity) (by
+      intro r hr hrR
+      have hpair := stationary_thresholdPairCount_le hL hw.le μ 2 (by decide) r hr (hrR.trans_le hRL)
+      exact hpair.trans (mul_le_mul (pow_le_pow_right₀ hc (by omega))
+        (by simpa using hfactor) (by positivity) (by positivity)))
+  convert h using 1
+  ring
+
+theorem multipleDensity_tendsto_zero_of_bigDensity_tendsto_zero
+    {L N : ℕ → ℕ} [∀ n, NeZero (L n)] {w : ℝ} (hL : ∀ n, 3 ≤ L n)
+    (hLlim : Tendsto L atTop atTop) (hw : 0 < w) (μ : (n : ℕ) → StationaryLaw (L n) (N n) w)
+    (hbig : Tendsto (fun n => meanAboveCapCount (μ n) 2 / (L n : ℝ)) atTop (𝓝 0)) :
+    Tendsto (fun n => meanMultipleCount (μ n) / (L n : ℝ)) atTop (𝓝 0) := by
+  apply density_tendsto_zero_of_window_bounds hLlim
+    (fun n => div_nonneg (meanMultipleCount_nonneg (μ n)) (by positivity)) hbig
+  intro R hR
+  exact ⟨_, fun n hn => stationary_multipleDensity_le (hL n) hw (μ n) R hR hn⟩
 
 private theorem meanAboveCapCount_le {L N : ℕ} {w : ℝ} (μ : StationaryLaw L N w) (k : ℕ) :
     meanAboveCapCount μ k ≤ (N : ℝ) / ((k : ℝ) + 1) := by

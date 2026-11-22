@@ -10,6 +10,11 @@ import ChippingSupercondensation.PeakFrame
 import ChippingSupercondensation.Clusters
 import ChippingSupercondensation.PileCount
 import ChippingSupercondensation.MassThree
+import ChippingSupercondensation.BigBackground
+import ChippingSupercondensation.WindowEight
+import ChippingSupercondensation.VariableWindow
+import ChippingSupercondensation.WindowMotion
+import ChippingSupercondensation.WindowSum
 
 /-!
 # Supercondensation for the totally asymmetric chipping process
@@ -40,6 +45,15 @@ in dependency order:
   three or more.
 * `MassThree`: cluster masses under whole moves and trivial chips, and the
   exact drift of state-dependent weights for clusters of mass three.
+* `BigBackground`: the unconditional reduction to background piles of size at
+  least three, short windows around the peak, and a bound by distant mass and births.
+* `WindowEight`: a radius-eight certificate for rates from one sixth to one fifth.
+* `VariableWindow`: closed-form group prices with uniform negative bare-triple
+  drift at every rate in (0, 1/32].
+* `WindowMotion`: the variable-radius certificate under actual ring moves and
+  a stationary bound for a bare triple in terms of light blocks and exits.
+* `WindowSum`: the block bound summed over every base of the ring together with
+  the linear moment, giving a stationary bound for isolated bare triples.
 
 `Coalescence` depends only on `Identities` and the modules before it.
 `PileBirths` imports both `Background` and `Coalescence`. `PeakFrame` depends

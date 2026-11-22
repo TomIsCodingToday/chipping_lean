@@ -57,7 +57,7 @@ measures the terms of the stationary identity for those weights.
 
 ## Module layout
 
-The development is split into twelve modules under `ChippingSupercondensation/`.
+The development is split into seventeen modules under `ChippingSupercondensation/`.
 The root `ChippingSupercondensation.lean` imports all of them, so
 `import ChippingSupercondensation` still provides every declaration. Add any
 new module to that import list so that `lake build` checks it.
@@ -76,6 +76,11 @@ new module to that import list so that `lake build` checks it.
 | `Clusters` | `PeakFrame` | Piles together with the singles they will sweep, as clusters in the frame of a majority pile; the exact drift of anchor-weighted moments, to which only exceptional chips contribute |
 | `PileCount` | `PeakFrame` | The exact balance of the number of piles; piles of two are at most `w` times the occupied sites, and the background reduces to piles of three or more |
 | `MassThree` | `Clusters`, `PileCount` | Cluster masses under whole moves and trivial chips; the exact drift of state-dependent weights for clusters of mass three |
+| `BigBackground` | `PileBirths`, `PileCount`, mathlib | Unconditional reduction to background piles of size at least three, short windows around the peak, and a global bound by distant mass and births |
+| `WindowEight` | `PeakFrame` | Exact radius-eight certificate and stationary block bound for `1/6 ≤ w ≤ 1/5` |
+| `VariableWindow` | `Basic`, mathlib | Closed-form prices for groups of up to three particles at every `0 < w ≤ 1/32`, with uniform bare-triple drift credit |
+| `WindowMotion` | `VariableWindow`, `WindowEight`, mathlib | Embedding of gap transitions in the ring generator, the full drift at a bare triple, and the two exit events that can create positive price from a heavy block |
+| `WindowSum` | `WindowMotion`, `PeakFrame` | The block bound at every base of the ring, summed and combined with the linear moment; a stationary bound for isolated bare triples |
 
 `Coalescence` does not depend on `LargestPile` or `Background`, and
 `PeakFrame` depends only on `LargestPile`, so Lake can build these in parallel.
@@ -85,12 +90,86 @@ longer `private`. Lean reports the same 336 declarations, with the same
 statements and axioms, as the single file did before the split. `PeakFrame`,
 `Clusters`, `PileCount` and `MassThree` later added 176 declarations, and 18
 existing helpers, among them `occ_move_delta`, became public. No earlier
-statement changed.
+statement changed. `WindowSum` adds 46 declarations. Ten helpers of
+`WindowMotion`, among them `slice_facts` and `block_move_after`, became public
+with their statements unchanged.
 
 ## Review and proof status
 
 Each item names the module that contains it.
 
+- (`BigBackground`) For any fixed positive chip rate and limiting density,
+  `tails_vanish_iff_bigBackgroundMass_tendsto_zero` makes the target equivalent
+  to vanishing mean mass fraction on sites of size at least three outside one
+  largest pile. The proof covers the entire stationary law. Window packing at
+  threshold two bounds the density of multiple sites by `1/R` plus
+  `R (2w+3)^R` times the density of sites with at least three particles.
+- (`BigBackground`) For `0 ≤ w ≤ 1`, the expected fraction on the first
+  `R < L` sites on either side of a chosen peak is at most
+  `sqrt(R²(R+1)/N)` **on each side**. The mass at an offset is at most the
+  peak mass, so its square is bounded by the mass product at that offset.
+  `stationary_bigBackgroundFraction_le_distantBand_and_births` then leaves
+  two terms to estimate at fixed positive density and `R = o(N^(1/3))`:
+  the fraction on distant background piles of sizes three through the upper
+  cutoff, and the weighted rate of whole-pile and distant-chip births at
+  the selected cutoff.
+- (`WindowEight`) One table of half-integer prices gives internal drift at
+  most `-1/2` for a bare triple and at most zero for the other groups of up
+  to three particles whenever `1/6 ≤ w ≤ 1/5`. Lean checks the two endpoints
+  by integer arithmetic, verifies the merging moves, and interpolates the
+  drift. A pile of two with an adjacent singleton ahead has drift `3 - 18w`,
+  which explains the lower endpoint for this table.
+- (`VariableWindow`, `WindowMotion`) A separate analytic family works at
+  every `0 < w ≤ 1/32`. Set `R = ceil(1/(8w²))`, `K = 1/w` and write
+  `u₊ = max(u,0)`. A pile of two costs 3. With a singleton at distance `d`,
+  the price is `3 + (R-d)₊` when the singleton is ahead and
+  `3 + (R-Kd)₊/2` when it is behind. Three singletons with gaps `a,b`
+  cost `(R-b-Ka)₊`. A bare triple costs the adjacent-ahead price plus
+  `1 + 1/(64w)`. The prices add across a gap at the cutoff.
+  `smallRate_ring_drift_le` proves that the internal ring clocks plus the
+  group's first-moment share have drift at most `-1/64` for a bare triple
+  and at most zero for every other shape. Sites outside the block may carry
+  arbitrary mass.
+- (`WindowMotion`) For the test on one fixed block, `generator_bareThree_le`
+  bounds the **full** generator by `-(w+1/64)` when the block contains
+  exactly three particles at its first site. On a block of mass at least
+  four, positive price can arise only when a chip exits a block of mass four
+  or a whole pile exits leaving two or three particles.
+  `stationary_bareThree_le_lightDrift_and_exits` charges the bare-triple
+  event to those exits and the drift on other blocks of mass at most three.
+  This is a finite-volume identity-based bound. The frequencies of the
+  creation events and the mass in larger distant groups still require estimates.
+- (`WindowSum`) The fixed-block bound is summed over all `L` bases for a block
+  width `2 ≤ W < L`, and the peak-frame linear moment is added.
+  `ring_drift_eq_shift` applies the certificate to a group at any offset
+  in its block. `generator_blockPrice_add_share_le` bounds one block's
+  generator plus its share of `w K - S` in every state:
+  - by `-1/64` if the block holds exactly a bare triple before its last site;
+  - plus at most `6 priceBound w` if the site behind the block is occupied, and
+    the same again if the block's last site is occupied;
+  - plus `w` per occupied site of the block if it holds four or more particles.
+
+  Summing, every occupied site is behind one block and last in one block, so
+  arrivals and exits cost at most `12 priceBound w E[K]` in total, whatever
+  `W` is. `stationary_bareBlocks_le` holds for every stationary law, without
+  a majority assumption:
+
+      (1/64) E[Σ bare blocks] + W E[w K - S] ≤ 12 priceBound w E[K] + w E[Σ heavy occupancy].
+
+  A bare triple whose `W - 1` neighbours on each side are empty fills `W - 1`
+  blocks (`isolatedTripleCount_le`). Bounding `E[w K - S]` below on the
+  majority region (`exists_majority_cutoff_singles_rear_flux_le`) gives
+  `stationary_isolatedTriples_le`:
+
+      ((W-1)/64) E[isolated triples] ≤ 12 priceBound w E[K] + w E[Σ heavy occupancy]
+                                       + W (cutoff error + E[S outside the majority region]).
+
+  The heavy occupancy is at most `W E[K]` (`sum_heavyOccupancy_le`). The
+  blocks containing the peak alone contribute about `W`, so the inequality
+  can show at best that isolated bare triples number `O(w)` times the
+  occupied sites within `W` of a heavy group, plus `O(1/W)` times `E[K]`.
+  The boundary constant is crude. At `w = 1/32`, `priceBound w ≈ 132`, so the
+  boundary term falls below the credit only for `W` of order `10⁵`.
 - (`Model`) `SmallWSupercondensation` is a proposition definition, not a proved
   theorem. The required statement has one positive rate threshold valid for
   every positive density, with the rate held fixed as ring size grows.
@@ -536,10 +615,10 @@ the following steps.
    progress. Window weights, which also weigh the debris of a dissolved
    cluster, remove this obstruction. The weights of order `1/w²` described
    above give a drift of order one per bare pile of three. They keep the
-   weights of groups of two, and make merges free. The next steps are closed
-   forms in `w` for these weights, and a formal definition. One candidate
-   replaces the window by the nearest occupied site ahead of each pile and of
-   each adjacent pair of singles, with weights decaying like `(1 + w)^(-d)`.
+   weights of groups of two, and make merges free. The analytic family in
+   `VariableWindow` instead uses a price of three for a pile of two and
+   piecewise-linear functions of the gaps. Its radius grows with decreasing
+   chip rate, and its bare-triple drift credit is independent of the rate.
    The earlier plan of anchoring at pairs of singles does not help; see the
    table above.
 4. Bound the rate at which clusters of each mass are created. Each creation
@@ -556,15 +635,28 @@ the following steps.
 6. Show that the majority region `N + 2 < 2M` has probability tending to one.
    The simulations never left it, but no checked estimate addresses it yet.
 
-Step 3 is formalized for piles of two. For clusters of mass three the exact
-drift is formalized, but the class weights it uses are too weak. Window
-weights that work are known numerically, for fixed `w`, but are not yet
-formalized. With them, step 4 at mass three amounts to bounding the peak term
-of the identity above. Steps 4 to 6 are not formalized.
+Step 3 now has a checked small-rate certificate for groups of mass at most
+three. For step 4, the fixed-block stationary theorem identifies the exit
+events that create price from larger blocks. `WindowSum` combines the block
+bounds across the ring. Exits and arrivals then cost at most
+`12 priceBound w E[K]` in total, which is small against the credit for a
+fixed, large `W`. Two terms are not small:
+
+- `w` times the occupied sites of blocks with four or more particles;
+- `W` times the linear-moment error, which includes the singles outside the
+  majority region.
+
+The result bounds isolated bare triples by heavier structures. It does not
+bound the mass of larger piles. That needs the same scheme for groups of every
+mass up to a cutoff: certificates for mass `m` whose heavy terms are charged
+to mass `m + 1` and to the peak. The global reduction in `BigBackground` also
+requires control of distant intermediate mass and competing births. Along
+that route a separate majority estimate is unnecessary, but the linear moment
+used here still needs one.
 
 Lean 4.19.0 and mathlib are installed. `lake-manifest.json` locks mathlib to
 `c44e0c8ee63ca166450922a373c7409c5d26b00b` (v4.19.0) and records the transitive
-dependencies. `lake build` passes for all twelve modules and the root.
+dependencies. `lake build` checks all seventeen modules and the root.
 
 Setup follows the [Lean community project instructions](https://leanprover-community.github.io/install/project.html)
 and the [official Elan Windows installer](https://github.com/leanprover/elan/blob/master/elan-init.ps1).
